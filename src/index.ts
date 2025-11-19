@@ -1,19 +1,37 @@
-import { config } from "dotenv";
+import { config } from 'dotenv';
 config({ quiet: true });
 
-import { GoogleGenAI } from "@google/genai";
+import { GenerateContentResponse, GoogleGenAI, type Content } from '@google/genai';
+import * as readline from 'readline/promises';
 
-const context:string[] = []
+const context: Content[] = [];
 
 const ai = new GoogleGenAI({ apiKey: process.env.G_KEY ?? '' });
 
-async function main() {
-    const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: "Explain how AI works in a few words",
-    });
+const callLLM = async (line: string): Promise<GenerateContentResponse> => {
+  context.push({ role: 'user', parts: [{ text: line }] });
 
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: context,
+  });
+
+  context.push({ role: 'model', parts: [{ text: response.text ?? '' }] });
+
+  return response;
+};
+
+async function main() {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  while (true) {
+    const line = await rl.question('>!< ');
+    const response = await callLLM(line);
     console.log(response.text);
+  }
 }
 
 await main();
