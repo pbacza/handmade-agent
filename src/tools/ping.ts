@@ -4,7 +4,7 @@ export const ping = (host: string) => {
   return pingFn.promise.probe(host);
 };
 
-export const pingu = {
+export const pingTool = {
   name: 'ping',
   description:
     'ping some host on the internet. Returns connectivity information including whether the host is alive, response time in milliseconds, packet loss percentage, and network statistics (min/max/avg/stddev).',
