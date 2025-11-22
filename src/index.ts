@@ -9,10 +9,14 @@ import type {
   ResponseInputItem,
 } from 'openai/resources/responses/responses.mjs';
 import * as readline from 'readline/promises';
+import { styleText } from 'node:util';
 import { ping, pingu } from './tools/ping.js';
 
 const client = new OpenAI({ apiKey: process.env.O_KEY });
 const context: ResponseInput = [];
+
+const assIcon = styleText('blue', '^!^');
+const usrIcon = styleText('magenta', '>?<');
 
 main();
 
@@ -23,9 +27,19 @@ async function main() {
   });
 
   while (true) {
-    const line = await rl.question('>?<: ');
-    const response = await processInput(line);
-    console.log('^!^: ', response);
+    try {
+      const line = await rl.question(`${usrIcon}: `);
+      const response = await processInput(line);
+      console.log(`${assIcon}: `, response);
+    } catch (error) {
+      // Handle Ctrl+C gracefully
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log(`\n${assIcon}: Goodbye!\n`);
+        rl.close();
+        process.exit(0);
+      }
+      throw error;
+    }
   }
 }
 
