@@ -61,7 +61,6 @@ const callLLM = (context: OpenAI.Responses.ResponseInput) => {
   return client.responses.create({
     model: 'gpt-5',
     input: context,
-    // reasoning: { effort: 'medium' },
     tools: [
       {
         name: pingu.name,
@@ -85,10 +84,15 @@ const callLLM = (context: OpenAI.Responses.ResponseInput) => {
 };
 
 const handleTools = async (response: Response) => {
-  let hasFnCallHappened = false; //! REFACTOR
+  let hasFnCallHappened = false;
 
   for (const output of response.output) {
     switch (output.type) {
+      case 'reasoning': {
+        context.push(output);
+        continue;
+      }
+
       case 'function_call': {
         context.push(output);
         const result = await callTool(output);
@@ -96,11 +100,6 @@ const handleTools = async (response: Response) => {
           context.push(result);
         }
         hasFnCallHappened = true;
-        continue;
-      }
-
-      case 'reasoning': {
-        context.push(output);
         continue;
       }
     }
@@ -113,7 +112,7 @@ const callTool = async (
   output: ResponseFunctionToolCall,
 ): Promise<ResponseInputItem.FunctionCallOutput | undefined> => {
   if (output.name === 'ping') {
-    const host = JSON.parse(output.arguments).host; //! A BIT UGLY
+    const host = JSON.parse(output.arguments).host;
     const result = await ping(host);
     console.log('>>> Ping: ', host);
 
@@ -124,5 +123,3 @@ const callTool = async (
     };
   }
 };
-
-// describe connectivity to google
