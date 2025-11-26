@@ -12,15 +12,14 @@ import * as readline from 'readline/promises';
 import { styleText } from 'node:util';
 import { readFileContent, readFileTool } from './tools/read-file.js';
 import { readDirectory, readDirectoryTool } from './tools/read-directory.js';
-import { writeFileContent, writeFileTool } from './tools/write-file.js';
-
-const client = new OpenAI({ apiKey: process.env.O_KEY });
-const context: ResponseInput = [
-  { role: 'system', content: 'You have my recipes in ./recipes folder' },
-];
 
 const astIcon = styleText('blue', '^!^');
 const usrIcon = styleText('magenta', '>?<');
+const client = new OpenAI({ apiKey: process.env.O_KEY });
+
+const context: ResponseInput = [
+  { role: 'system', content: 'You have my recipes in ./recipes folder' },
+];
 
 main();
 
@@ -67,7 +66,6 @@ const callLLM = (context: OpenAI.Responses.ResponseInput) => {
   return client.responses.create({
     model: 'gpt-5-mini',
     input: context,
-    reasoning: { effort: 'medium' },
     tools: [
       {
         name: readFileTool.name,
@@ -82,27 +80,6 @@ const callLLM = (context: OpenAI.Responses.ResponseInput) => {
             },
           },
           required: [readFileTool.params.name],
-          additionalProperties: false,
-        },
-        strict: true,
-      },
-      {
-        name: writeFileTool.name,
-        description: writeFileTool.description,
-        type: 'function',
-        parameters: {
-          type: 'object',
-          properties: {
-            [writeFileTool.params.filePath.name]: {
-              type: 'string',
-              description: writeFileTool.params.filePath.description,
-            },
-            [writeFileTool.params.content.name]: {
-              type: 'string',
-              description: writeFileTool.params.content.description,
-            },
-          },
-          required: [writeFileTool.params.filePath.name, writeFileTool.params.content.name],
           additionalProperties: false,
         },
         strict: true,
@@ -183,19 +160,6 @@ const callTool = async (
         type: 'function_call_output',
         call_id: output.call_id,
         output: JSON.stringify(result),
-      };
-    }
-
-    case writeFileTool.name: {
-      const { filePath, content } = JSON.parse(output.arguments);
-      console.log('>>> Write File: ', filePath);
-      await writeFileContent(filePath, content);
-
-      return {
-        type: 'function_call_output',
-        call_id: output.call_id,
-        status: 'completed',
-        output: `${filePath} created`,
       };
     }
 
