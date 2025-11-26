@@ -10,15 +10,16 @@ import type {
 } from 'openai/resources/responses/responses.mjs';
 import * as readline from 'readline/promises';
 import { styleText } from 'node:util';
-import { ping, pingTool } from './tools/ping.js';
 import { readFileContent, readFileTool } from './tools/read-file.js';
 import { readDirectory, readDirectoryTool } from './tools/read-directory.js';
 import { writeFileContent, writeFileTool } from './tools/write-file.js';
 
 const client = new OpenAI({ apiKey: process.env.O_KEY });
-const context: ResponseInput = [];
+const context: ResponseInput = [
+  { role: 'system', content: 'You have my recipes in ./recipes folder' },
+];
 
-const assIcon = styleText('blue', '^!^');
+const astIcon = styleText('blue', '^!^');
 const usrIcon = styleText('magenta', '>?<');
 
 main();
@@ -34,11 +35,11 @@ async function main() {
       const line = await rl.question(`${usrIcon}: `);
       context.push({ role: 'user', content: line });
       const response = await processInput(context);
-      console.log(`${assIcon}: `, response.output_text);
+      console.log(`${astIcon}:`, response.output_text);
     } catch (error) {
       // Handle Ctrl+C gracefully
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log(`\n${assIcon}: Goodbye!\n`);
+        console.log(`\n${astIcon}: Goodbye!\n`);
         rl.close();
         process.exit(0);
       }
@@ -68,24 +69,6 @@ const callLLM = (context: OpenAI.Responses.ResponseInput) => {
     reasoning: { effort: 'medium' },
     tools: [
       {
-        name: pingTool.name,
-        description: pingTool.description,
-        type: 'function',
-        parameters: {
-          type: 'object',
-          properties: {
-            [pingTool.params.name]: {
-              type: 'string',
-              description: pingTool.params.description,
-            },
-          },
-          required: [pingTool.params.name],
-          additionalProperties: false,
-        },
-        strict: true,
-      },
-
-      {
         name: readFileTool.name,
         description: readFileTool.description,
         type: 'function',
@@ -102,7 +85,6 @@ const callLLM = (context: OpenAI.Responses.ResponseInput) => {
         },
         strict: true,
       },
-
       {
         name: writeFileTool.name,
         description: writeFileTool.description,
@@ -124,7 +106,6 @@ const callLLM = (context: OpenAI.Responses.ResponseInput) => {
         },
         strict: true,
       },
-
       {
         name: readDirectoryTool.name,
         description: readDirectoryTool.description,
@@ -175,18 +156,6 @@ const callTool = async (
   output: ResponseFunctionToolCall,
 ): Promise<ResponseInputItem.FunctionCallOutput | undefined> => {
   switch (output.name) {
-    case pingTool.name: {
-      const host = JSON.parse(output.arguments).host;
-      console.log('>>> Ping: ', host);
-      const result = await ping(host);
-
-      return {
-        type: 'function_call_output',
-        call_id: output.call_id,
-        output: JSON.stringify(result),
-      };
-    }
-
     case readFileTool.name: {
       const fileName = JSON.parse(output.arguments).filePath;
       console.log('>>> Read File: ', fileName);
