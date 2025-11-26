@@ -52,7 +52,8 @@ const processInput = async (context: ResponseInput): Promise<OpenAI.Responses.Re
   const response = await callLLM(context);
   context.push({ role: 'assistant', content: response.output_text });
 
-  const hasCalledTool = await handleTools(response);
+  const { hasCalledTool, innerContext } = await handleTools(response);
+  context.push(...innerContext);
   if (hasCalledTool) {
     console.log('>>> hasCalledTool', hasCalledTool);
     const rs = await processInput(context);
@@ -127,29 +128,33 @@ const callLLM = (context: OpenAI.Responses.ResponseInput) => {
   });
 };
 
-const handleTools = async (response: Response): Promise<boolean> => {
-  let hasFnCallHappened = false;
+const handleTools = async (
+  response: Response,
+): Promise<{ hasCalledTool: boolean; innerContext: ResponseInput }> => {
+  let hasCalledTool = false;
+
+  const innerContext: ResponseInput = [];
 
   for (const output of response.output) {
     switch (output.type) {
       case 'reasoning': {
-        context.push(output);
+        innerContext.push(output);
         continue;
       }
 
       case 'function_call': {
-        context.push(output);
+        innerContext.push(output);
         const result = await callTool(output);
         if (result) {
-          context.push(result);
+          innerContext.push(result);
         }
-        hasFnCallHappened = true;
+        hasCalledTool = true;
         continue;
       }
     }
   }
 
-  return hasFnCallHappened;
+  return { hasCalledTool, innerContext };
 };
 
 const callTool = async (
