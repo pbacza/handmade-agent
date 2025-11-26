@@ -2,24 +2,15 @@ import { config } from 'dotenv';
 config({ quiet: true });
 
 import OpenAI from 'openai';
-import type {
-  ResponseInput,
-  Response,
-  ResponseFunctionToolCall,
-  ResponseInputItem,
-} from 'openai/resources/responses/responses.mjs';
+import type { ResponseInput } from 'openai/resources/responses/responses.mjs';
 import * as readline from 'readline/promises';
 import { styleText } from 'node:util';
-import { readFileContent, readFileTool } from './tools/read-file.js';
-import { readDirectory, readDirectoryTool } from './tools/read-directory.js';
-
-const client = new OpenAI({ apiKey: process.env.O_KEY });
-const context: ResponseInput = [
-  { role: 'system', content: 'You have my recipes in ./recipes folder' },
-];
 
 const astIcon = styleText('blue', '^!^');
 const usrIcon = styleText('magenta', '>?<');
+const client = new OpenAI({ apiKey: process.env.O_KEY });
+
+const context: ResponseInput = [{ role: 'system', content: '' }];
 
 main();
 
@@ -32,8 +23,11 @@ async function main() {
   while (true) {
     try {
       const line = await rl.question(`${usrIcon}: `);
+
       context.push({ role: 'user', content: line });
+
       const response = await processInput(context);
+
       console.log(`${astIcon}:`, response.output_text);
     } catch (error) {
       // Handle Ctrl+C gracefully
@@ -51,14 +45,6 @@ const processInput = async (context: ResponseInput): Promise<OpenAI.Responses.Re
   const response = await callLLM(context);
   context.push({ role: 'assistant', content: response.output_text });
 
-  const { hasCalledTool, innerContext } = await handleTools(response);
-  context.push(...innerContext);
-  if (hasCalledTool) {
-    console.log('>>> hasCalledTool', hasCalledTool);
-    const rs = await processInput(context);
-    return rs;
-  }
-
   return response;
 };
 
@@ -66,105 +52,5 @@ const callLLM = (context: OpenAI.Responses.ResponseInput) => {
   return client.responses.create({
     model: 'gpt-5-mini',
     input: context,
-    reasoning: { effort: 'medium' },
-    tools: [
-      {
-        name: readFileTool.name,
-        description: readFileTool.description,
-        type: 'function',
-        parameters: {
-          type: 'object',
-          properties: {
-            [readFileTool.params.name]: {
-              type: 'string',
-              description: readFileTool.params.description,
-            },
-          },
-          required: [readFileTool.params.name],
-          additionalProperties: false,
-        },
-        strict: true,
-      },
-      {
-        name: readDirectoryTool.name,
-        description: readDirectoryTool.description,
-        type: 'function',
-        parameters: {
-          type: 'object',
-          properties: {
-            [readDirectoryTool.params.name]: {
-              type: 'string',
-              description: readDirectoryTool.params.description,
-            },
-          },
-          required: [readDirectoryTool.params.name],
-          additionalProperties: false,
-        },
-        strict: true,
-      },
-    ],
   });
-};
-
-const handleTools = async (
-  response: Response,
-): Promise<{ hasCalledTool: boolean; innerContext: ResponseInput }> => {
-  let hasCalledTool = false;
-
-  const innerContext: ResponseInput = [];
-
-  for (const output of response.output) {
-    switch (output.type) {
-      case 'reasoning': {
-        innerContext.push(output);
-        continue;
-      }
-
-      case 'function_call': {
-        innerContext.push(output);
-        const result = await callTool(output);
-        if (result) {
-          innerContext.push(result);
-        }
-        hasCalledTool = true;
-        continue;
-      }
-    }
-  }
-
-  return { hasCalledTool, innerContext };
-};
-
-const callTool = async (
-  output: ResponseFunctionToolCall,
-): Promise<ResponseInputItem.FunctionCallOutput | undefined> => {
-  switch (output.name) {
-    case readFileTool.name: {
-      const fileName = JSON.parse(output.arguments).filePath;
-      console.log('>>> Read File: ', fileName);
-      const result = await readFileContent(fileName);
-
-      return {
-        type: 'function_call_output',
-        call_id: output.call_id,
-        output: result,
-      };
-    }
-
-    case readDirectoryTool.name: {
-      const dirPath = JSON.parse(output.arguments).dirPath;
-      console.log('>>> Read Dir: ', dirPath);
-      const result = await readDirectory(dirPath);
-      console.log('>>> Read Dir: ', result);
-
-      return {
-        type: 'function_call_output',
-        call_id: output.call_id,
-        output: JSON.stringify(result),
-      };
-    }
-
-    default:
-      break;
-  }
 };
