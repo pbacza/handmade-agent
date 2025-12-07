@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "tsx src/index.ts",
+    "ollama": "tsx src/ollama.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
@@ -28,8 +29,8 @@
     "typescript-eslint": "^8.47.0"
   },
   "dependencies": {
-    "@google/genai": "^1.30.0",
     "dotenv": "^17.2.3",
+    "ollama": "^0.6.3",
     "openai": "^6.9.1",
     "ping": "^1.0.0"
   }
