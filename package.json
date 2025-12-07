@@ -6,6 +6,7 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "ollama": "tsx src/ollama.ts",
+    "or": "tsx src/open-router.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
@@ -29,6 +30,7 @@
     "typescript-eslint": "^8.47.0"
   },
   "dependencies": {
+    "@openrouter/sdk": "^0.2.9",
     "dotenv": "^17.2.3",
     "ollama": "^0.6.3",
     "openai": "^6.9.1",
